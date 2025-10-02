@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英國家庭旅行日記 2025</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        const TravelDiary = () => {
+          const [entries, setEntries] = useState([]);
+          const [showForm, setShowForm] = useState(false);
+          const [userName, setUserName] = useState('');
+          const [showNamePrompt, setShowNamePrompt] = useState(true);
+          const [editingId, setEditingId] = useState(null);
+          
+          const [formData, setFormData] = useState({
+            date: new Date().toISOString().split('T')[0],
+            city: '',
+            author: '',
+            weather: '晴天',
+            activities: '',
+            highlights: '',
+            food: '',
+            notes: '',
+            location: '',
+            ratings: {
+              景點: 0,
+              美食: 0,
+              住宿: 0,
+              整體體驗: 0
+            }
+          });
+
+          const FIREBASE_URL = 'https://uk-travel-diary-default-rtdb.asia-southeast1.firebasedatabase.app/entries.json';
+
+          useEffect(() => {
+            loadEntries();
+            const savedName = localStorage.getItem('travelUserName');
+            if (savedName) {
+              setUserName(savedName);
+              setShowNamePrompt(false);
+            }
+          }, []);
+
+          const loadEntries = async () => {
+            try {
+              const response = await fetch(FIREBASE_URL);
+              const data = await response.json();
+              if (data) {
+                const entriesArray = Object.keys(data).map(key => ({
+                  id: key,
+                  ...data[key]
+                }));
+                setEntries(entriesArray.sort((a, b) => new Date(b.date) - new Date(a.date)));
+              }
+            } catch (error) {
+              console.log('載入資料失敗，使用本地資料');
+              const localData = localStorage.getItem('travelEntries');
+              if (localData) {
+                setEntries(JSON.parse(localData));
+              }
+            }
+          };
+
+          const saveEntry = async () => {
+            if (!formData.city || !formData.highlights) {
+              alert('請至少填寫城市和亮點時刻');
+              return;
+            }
+
+            const newEntry = {
+              ...formData,
+              author: userName,
+              timestamp: new Date().toISOString()
+            };
+
+            try {
+              const response = await fetch(FIREBASE_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newEntry)
+              });
+              
+              if (response.ok) {
+                await loadEntries();
+                resetForm();
+                setShowForm(false);
+                alert('記錄已保存!');
+              }
+            } catch (error) {
+              const localEntries = [...entries, { ...newEntry, id: Date.now().toString() }];
+              setEntries(localEntries);
+              localStorage.setItem('travelEntries', JSON.stringify(localEntries));
+              resetForm();
+              setShowForm(false);
+              alert('已保存到本地!');
+            }
+          };
+
+          const editEntry = (entry) => {
+            setFormData({
+              date: entry.date,
+              city: entry.city,
+              author: entry.author,
+              weather: entry.weather,
+              activities: entry.activities || '',
+              highlights: entry.highlights,
+              food: entry.food || '',
+              notes: entry.notes || '',
+              location: entry.location || '',
+              ratings: entry.ratings
+            });
+            setEditingId(entry.id);
+            setShowForm(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          };
+
+          const updateEntry = async () => {
+            if (!formData.city || !formData.highlights) {
+              alert('請至少填寫城市和亮點時刻');
+              return;
+            }
+
+            const updatedEntry = {
+              ...formData,
+              author: formData.author,
+              timestamp: new Date().toISOString()
+            };
+
+            try {
+              const updateUrl = `https://uk-travel-diary-default-rtdb.asia-southeast1.firebasedatabase.app/entries/${editingId}.json`;
+              const response = await fetch(updateUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedEntry)
+              });
+              
+              if (response.ok) {
+                await loadEntries();
+                resetForm();
+                setShowForm(false);
+                setEditingId(null);
+                alert('記錄已更新!');
+              }
+            } catch (error) {
+              alert('更新失敗!');
+            }
+          };
+
+          const cancelEdit = () => {
+            resetForm();
+            setShowForm(false);
+            setEditingId(null);
+          };
+
+          const resetForm = () => {
+            setFormData({
+              date: new Date().toISOString().split('T')[0],
+              city: '',
+              author: '',
+              weather: '晴天',
+              activities: '',
+              highlights: '',
+              food: '',
+              notes: '',
+              location: '',
+              ratings: {
+                景點: 0,
+                美食: 0,
+                住宿: 0,
+                整體體驗: 0
+              }
+            });
+          };
+
+          const setUserNameHandler = () => {
+            if (userName.trim()) {
+              localStorage.setItem('travelUserName', userName);
+              setShowNamePrompt(false);
+            }
+          };
+
+          const StarRating = ({ category, value, onChange }) => (
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium w-20">{category}:</span>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <svg
+                    key={star}
+                    className={`w-5 h-5 cursor-pointer ${star <= value ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                    onClick={() => onChange(category, star)}
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                ))}
+              </div>
+            </div>
+          );
+
+          const exportToWord = () => {
+            let content = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>英國家庭旅行日記</title></head><body>';
+            content += '<h1 style="text-align:center;">英國家庭旅行日記 2025</h1>';
+            content += '<p style="text-align:center;color:#666;">17天家庭之旅完整記錄</p><hr>';
+            
+            entries.forEach(entry => {
+              content += `<div style="page-break-inside:avoid;margin:20px 0;padding:15px;border:1px solid #ddd;">`;
+              content += `<h2>📅 ${entry.date} - ${entry.city}</h2>`;
+              content += `<p><strong>記錄者:</strong> ${entry.author} | <strong>天氣:</strong> ${entry.weather}</p>`;
+              
+              if (entry.location) {
+                content += `<p>📍 <strong>地點:</strong> ${entry.location}</p>`;
+              }
+              
+              if (entry.activities) {
+                content += `<p><strong>今日行程:</strong><br>${entry.activities.replace(/\n/g, '<br>')}</p>`;
+              }
+              
+              content += `<p><strong>✨ 亮點時刻:</strong><br>${entry.highlights.replace(/\n/g, '<br>')}</p>`;
+              
+              if (entry.food) {
+                content += `<p><strong>🍽️ 美食記錄:</strong><br>${entry.food.replace(/\n/g, '<br>')}</p>`;
+              }
+              
+              if (entry.notes) {
+                content += `<p><strong>💭 其他筆記:</strong><br>${entry.notes.replace(/\n/g, '<br>')}</p>`;
+              }
+              
+              content += '<p><strong>⭐ 評分:</strong></p><ul>';
+              Object.entries(entry.ratings).forEach(([cat, rating]) => {
+                if (rating > 0) {
+                  content += `<li>${cat}: ${'⭐'.repeat(rating)}</li>`;
+                }
+              });
+              content += '</ul></div>';
+            });
+            
+            content += '</body></html>';
+            
+            const blob = new Blob([content], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `英國家庭旅行日記_${new Date().toISOString().split('T')[0]}.doc`;
+            a.click();
+          };
+
+          if (showNamePrompt) {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
+                  <svg className="mx-auto mb-4 text-indigo-600" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  <h2 className="text-2xl font-bold text-center mb-2">歡迎使用旅行日記</h2>
+                  <p className="text-gray-600 text-center mb-6">請輸入你的名字</p>
+                  <input
+                    type="text"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    placeholder="你的名字"
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-4"
+                    onKeyPress={(e) => e.key === 'Enter' && setUserNameHandler()}
+                  />
+                  <button
+                    onClick={setUserNameHandler}
+                    className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700"
+                  >
+                    開始記錄
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-20">
+              <div className="bg-white shadow-md sticky top-0 z-10">
+                <div className="max-w-4xl mx-auto px-4 py-4">
+                  <h1 className="text-2xl font-bold text-indigo-900 text-center">🇬🇧 英國家庭旅行日記</h1>
+                  <p className="text-sm text-gray-600 text-center mt-1">記錄者: {userName}</p>
+                </div>
+              </div>
+
+              <div className="max-w-4xl mx-auto px-4 py-6">
+                <div className="flex gap-3 mb-6">
+                  <button
+                    onClick={() => setShowForm(!showForm)}
+                    className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 shadow-lg hover:bg-indigo-700"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    新增記錄
+                  </button>
+                  <button
+                    onClick={exportToWord}
+                    className="flex-1 bg-green-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 shadow-lg hover:bg-green-700"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    匯出Word
+                  </button>
+                </div>
+
+                {showForm && (
+                  <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                    <h2 className="text-xl font-bold mb-4 text-indigo-900">
+                      {editingId ? '✏️ 編輯記錄' : '✍️ 新增旅行記錄'}
+                    </h2>
+                    
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium mb-1">日期</label>
+                          <input
+                            type="date"
+                            value={formData.date}
+                            onChange={(e) => setFormData({...formData, date: e.target.value})}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1">天氣</label>
+                          <select
+                            value={formData.weather}
+                            onChange={(e) => setFormData({...formData, weather: e.target.value})}
+                            className="w-full p-2 border border-gray-300 rounded-lg"
+                          >
+                            <option>晴天</option>
+                            <option>多雲</option>
+                            <option>陰天</option>
+                            <option>雨天</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">城市 *</label>
+                        <input
+                          type="text"
+                          value={formData.city}
+                          onChange={(e) => setFormData({...formData, city: e.target.value})}
+                          placeholder="例: 愛丁堡"
+                          className="w-full p-2 border border-gray-300 rounded-lg"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">📍 地點標記</label>
+                        <input
+                          type="text"
+                          value={formData.location}
+                          onChange={(e) => setFormData({...formData, location: e.target.value})}
+                          placeholder="例: Edinburgh Castle, Old Town"
+                          className="w-full p-2 border border-gray-300 rounded-lg"
+                        />
+                        {formData.location && (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(formData.location)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 mt-1 inline-flex items-center gap-1"
+                          >
+                            📍 在Google Maps查看
+                          </a>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">今日行程</label>
+                        <textarea
+                          value={formData.activities}
+                          onChange={(e) => setFormData({...formData, activities: e.target.value})}
+                          placeholder="今天去了哪些地方..."
+                          className="w-full p-2 border border-gray-300 rounded-lg h-20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">✨ 亮點時刻 *</label>
+                        <textarea
+                          value={formData.highlights}
+                          onChange={(e) => setFormData({...formData, highlights: e.target.value})}
+                          placeholder="最難忘的時刻..."
+                          className="w-full p-2 border border-gray-300 rounded-lg h-20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">🍽️ 美食記錄</label>
+                        <textarea
+                          value={formData.food}
+                          onChange={(e) => setFormData({...formData, food: e.target.value})}
+                          placeholder="今天吃了什麼美食..."
+                          className="w-full p-2 border border-gray-300 rounded-lg h-20"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-1">💭 其他筆記</label>
+                        <textarea
+                          value={formData.notes}
+                          onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                          placeholder="其他想記錄的..."
+                          className="w-full p-2 border border-gray-300 rounded-lg h-20"
+                        />
+                      </div>
+
+                      <div className="bg-yellow-50 p-4 rounded-lg">
+                        <label className="block text-sm font-medium mb-3">⭐ 評分</label>
+                        {Object.keys(formData.ratings).map(category => (
+                          <StarRating
+                            key={category}
+                            category={category}
+                            value={formData.ratings[category]}
+                            onChange={(cat, val) => setFormData({
+                              ...formData,
+                              ratings: {...formData.ratings, [cat]: val}
+                            })}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="flex gap-3 pt-4">
+                        <button
+                          onClick={editingId ? updateEntry : saveEntry}
+                          className="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700"
+                        >
+                          {editingId ? '更新記錄' : '保存記錄'}
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-400"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {entries.length === 0 ? (
+                    <div className="bg-white rounded-2xl shadow-md p-8 text-center text-gray-500">
+                      <svg className="mx-auto mb-3 text-gray-400" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                      </svg>
+                      <p>還沒有任何記錄，開始記錄你的旅程吧！</p>
+                    </div>
+                  ) : (
+                    entries.map(entry => (
+                      <div key={entry.id} className="bg-white rounded-2xl shadow-md p-5">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="text-lg font-bold text-indigo-900">{entry.city}</h3>
+                            <p className="text-sm text-gray-600">{entry.date} · {entry.weather}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">
+                              {entry.author}
+                            </span>
+                            <button
+                              onClick={() => editEntry(entry)}
+                              className="text-blue-600 hover:text-blue-800 p-1"
+                              title="編輯記錄"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        {entry.location && (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-blue-600 mb-3"
+                          >
+                            📍 {entry.location}
+                          </a>
+                        )}
+
+                        {entry.activities && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-gray-700 mb-1">今日行程:</p>
+                            <p className="text-sm text-gray-600 whitespace-pre-line">{entry.activities}</p>
+                          </div>
+                        )}
+
+                        <div className="mb-3 bg-yellow-50 p-3 rounded-lg">
+                          <p className="text-sm font-medium text-gray-700 mb-1">✨ 亮點時刻:</p>
+                          <p className="text-sm text-gray-800 whitespace-pre-line">{entry.highlights}</p>
+                        </div>
+
+                        {entry.food && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-gray-700 mb-1">🍽️ 美食:</p>
+                            <p className="text-sm text-gray-600 whitespace-pre-line">{entry.food}</p>
+                          </div>
+                        )}
+
+                        {entry.notes && (
+                          <div className="mb-3">
+                            <p className="text-sm font-medium text-gray-700 mb-1">💭 筆記:</p>
+                            <p className="text-sm text-gray-600 whitespace-pre-line">{entry.notes}</p>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
+                          {Object.entries(entry.ratings).map(([cat, rating]) => 
+                            rating > 0 && (
+                              <span key={cat} className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+                                {cat}: {'⭐'.repeat(rating)}
+                              </span>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<TravelDiary />, document.getElementById('root'));
+    </script>
+</body>
+</html>
