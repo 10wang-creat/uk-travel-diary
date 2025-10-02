@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英國家庭旅行日記 2025</title>
+    <title>英國旅行日記 2025</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -211,9 +211,9 @@
           );
 
           const exportToWord = () => {
-            let content = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>英國家庭旅行日記</title></head><body>';
-            content += '<h1 style="text-align:center;">英國家庭旅行日記 2025</h1>';
-            content += '<p style="text-align:center;color:#666;">17天家庭之旅完整記錄</p><hr>';
+            let content = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>英國旅行日記</title></head><body>';
+            content += '<h1 style="text-align:center;">英國旅行日記 2025</h1>';
+            content += '<p style="text-align:center;color:#666;">17天旅行完整記錄</p><hr>';
             
             entries.forEach(entry => {
               content += `<div style="page-break-inside:avoid;margin:20px 0;padding:15px;border:1px solid #ddd;">`;
@@ -253,7 +253,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `英國家庭旅行日記_${new Date().toISOString().split('T')[0]}.doc`;
+            a.download = `英國旅行日記_${new Date().toISOString().split('T')[0]}.doc`;
             a.click();
           };
 
@@ -292,7 +292,7 @@
             <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-20">
               <div className="bg-white shadow-md sticky top-0 z-10">
                 <div className="max-w-4xl mx-auto px-4 py-4">
-                  <h1 className="text-2xl font-bold text-indigo-900 text-center">🇬🇧 英國家庭旅行日記</h1>
+                  <h1 className="text-2xl font-bold text-indigo-900 text-center">🇬🇧 英國旅行日記</h1>
                   <p className="text-sm text-gray-600 text-center mt-1">記錄者: {userName}</p>
                 </div>
               </div>
